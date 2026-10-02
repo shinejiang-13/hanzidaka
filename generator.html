@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>汉字数据生成器</title>
+<script src="https://cdn.jsdelivr.net/npm/cnchar/cnchar.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cnchar-order/cnchar.order.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cnchar-poly/cnchar.poly.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cnchar-words/cnchar.words.min.js"></script>
+</head>
+<body>
+<h2>汉字数据生成器</h2>
+<p>状态：<span id="status">加载中...</span></p>
+<p>已生成：<span id="progress">0</span> / <span id="total">0</span></p>
+<button id="start" disabled>开始生成</button>
+<button id="copy" disabled>复制数据</button>
+<br><br>
+<textarea id="output" rows="20" cols="100" placeholder="生成的数据将显示在这里..."></textarea>
+
+<script>
+// 部编版1-6年级写字表（来源：hanziaomi.com 统编版语文写字表）
+const GRADE_CHARS = {
+  1: "一二三上日田禾火口目耳手虫云山八十了子人大可东西月儿头里天四是女开水去来不木林土力心小少牛果鸟中五立正早书刀尺本在后我好自己衣长比巴把白的又和下个雨们竹牙马用几问有半只石多出见才明同学对妈全回工厂春风冬雪花飞入青清气晴情请生姓什么双国王方字左右红时动万吃叫主江住没以玩很当音讲行许会走北京门广思床前光低故乡过各种样伙伴这色外看爸晚笑再太阳片金秋因为午节叶米真分豆他河说也地听哥那着到高兴千成单居招呼快乐间迷造运池欢网打拍跑足声身体古凉细夕李语香之相近习远玉义首采无树爱尖角要连百还舌点亮机台放鱼朵美块非常往瓜进空直呀边呢吗吧加病医别干奇七星文次找平办让包吓怕跟家羊象都钟元洗共已经坐捉条爬姐您草房",
+  2: "两就哪宽顶肚皮孩跳法如脚它娃她毛更知识变极片傍海洋作给带园孔桥群队旗铜号领巾歌丛深处六熊猫九朋友杨壮桐枫松柏棉杉化桂季吹肥农事忙归辛苦年候柱底杆秤岁站船然洪灾难道认被业产老师由画妙合桌面课扁担志伍军战士怎今写圆珠笔灯句电起忘泼度龙炮穿向令哄先团脸蛋沉发窗危敢惊阴似野苍茫楼依尽层照炉烟挂川于论岸屋久散步消南部些巨位每升闪狗弟互得坏帕汗扔妹名胜迹央丽华展现披唱赶旺旁浑谁轻汽份坡梯客收城市利食物眼爷命爪神活井观沿答渴喝话际奶吵仔急咬第轮公阵朗枯做却将纷夜围何觉感拥周反而棵谢想盯言邻治怪羽挤挨败凶另诉信诗村童碧妆绿丝剪锋昨冒留弯背洒温暖冲寻姑娘吐柳荡桃杏能味买具甘汁甜菜劳邮递员黄原叔车局礼匹波纹像景恋舍求邓植引注满休息苗州奔湾峡民族谊齐奋贝壳甲骨坏钱币与财关贴街扫舟艾转团热闹烧茄烤鸭肉鸡炒饭彩梦蓝森拉结苹般精灵帮助导永乱闯碰特积需伞抬姨便教游戏母宇宙失量容易浴室补充抢亲炸药死记茶词页停表止杯咸屁股尿净屎幸使劲扇慢遇兔安根痛最筋疲亡牢钻劝丢告店决定商织终完围期参评奖报另及拿整并蛙卖搬倒籽泉破应愿意麦该刻突掉命祖啊浓望摘掏蛋忆湖莲穷荷绝含岭吴世界必须功反复简弄晴雷乌黑压技垂户迎扑觉值类艰弓炎害此新",
+  3: "晨绒球汉艳服装扮读断楚至孤帆饮初镜未静停粗影磨遥银盘落荒笛舞狂罚假互所富优浅错岩虾挺鼓数够猜扬臂厚宝贵寒径斜霜赠刘盖菊残滨灰渔遍躺载靠栽亚君橙送挑夏除踩洁铺泥晶紧院印排列规脑袋严实挡视线坛显则乱棕迟材软刮库盒颜料争仙淡闻妙演奏琴柔感受激击梨勾曲丰器滴敲鸣冷离等剩斧砍谷柴煤朝雾蒙鼻总抖露湿吸油诉睁接猎翅膀重旅咱怜救命拼扫胃管刺枣颗忽乎暗伸匆沟刚流泪算聪偷追腰洞准备暴墙壁饿蜘蛛司庭登跌众弃持漂晒掌班默腿轮投调摇晃搭亲父沙啦响羽翠嘴烈勇悄吞捕雀郊养粉粒男或者冻蒲英盛耍喊欠钓而察惜肯诚拢趣喜睡融燕鸳鸯惠崇芦芽梅腰套晾麻烦悠闲椅沫溪泛减冰凌提棒拂聚拢形掠偶尔沾倦状狐狸丁零巧克肠继支痕幅续糖瓣露蓬胀裂姿势仿佛随墨染竿碎浪葫爽针蘑菇守株待宋耕触颈释其虎级划尝兄段改达枪骄傲谦虚懦弱何尘哟亏挖技强代价皂廊碗若透娇扯仰串鹿塘映欣赏匀称致传越婴希哎狮叹呈幻蜡烛诱润乘芒剑屠苏换旧符欲魂借酒普通模型牧独异佳宁宫否汪险攻推迅速术伟录册保存约验阿退富铁陆伯欧洲社灿秒腿凶猛威武镇赵省县济匠设计史创性卷货取夹夸务衬衫且智慧历负责艺斗芬芳内醒寿灼仿示漏喂胖驴贼狼莫厉抱昆修建组架粘胶偏蜜蜂辨阻跨括捡查确误途陌",
+  4: "潮据堤阔笼罩盼滚顿悲惨兽佩坚违抗环锁逐渐犹崩震余既狠著愤获淘牵鹅卵填庄稼俗跃筝拔蝴蝶福托梢歇踪葡萄稻熟丧圈坊豌按适恐枪耐玻璃探嗅呆奈巢齿躯掩护幼愉绕曾搏庞量愣达蚊即科横竖绳系蝇摸甚跪捶顽脖脱概惹证研究驾驶昏握摔凭掐唤纪技程超亿索奥益念级段俩练裤改逃亏联质任善挖堂锅砸暮吟题侧峰庐缘降阁否旋况兵败仍尤恨帅费须逊输预溃品丑豪虎操占嫩舒顺均叠隙塞秦征词催醉杰亦雄项茎柄萎瞧固沈肃晰振胸怀赞效租宅临选择址良穴厅卧疑惑凡顾训斥专寸卫钳较锯戎尝诸竟唯劈缓浊丈撑竭累血液豹魏派娶媳妇淹硬浮奔茂滋宗旱徒饶帝曰溺返衔宿徐篱疏杂稀蜻蜓茅讨厌坝忠毒绩孵警戒檐翁锄赖剥歪咕汤掘伏啼构饰蹲凤序例率觅耸吠促颇剧苟譬侍馆附踏倘绘谐寄眠脾敏捷昂供慰锐滩帐烁蝙蝠霸鹰扩范努刹烂替镶紫仅怒吼脂拭餐划晌辣渗浙罗杜鹃窄郁肩臀移挣番埋刷测详额陆乳笋端源笨钝谈鸽毫末描隧态晋炕铅迈栓胳膊劫柜吨斤膨肢翼辟绸扒敌尸趁慌纳拥箱臭蔬碳钢隐健芙蓉洛壶雁砚乾坤康胞疾防灶需囊萤恭勤博贫逢卒繁漫灭藤萝膝涛躲伦腹剖窟窿混嘶维秩瓶挤叉挥卑岗宰措遣梭桦涂茸绣穗朦胧寂介绍妖矩乖烫溜丫福霞抹舔葵瘦罢忧虑贪职屏蹭稿腔解溢允砌禁牌啸瑟喧闷蛇遭殃盆勃损增添酷颊拆",
+  5: "宜鹤嫌朱嵌框匣嗜哨毁拱筑览境宏唐侵闯恩澄韵统销略奉亩播浇亭榨慕矮估殖粮炭区杀菌疗兰箩婆糕饼浸缠茶检鼠仁秀玲珑窝拾滑恼汛访鞋挽隔谴懒惰稳狭勉梳衡协绰辞抑碌吊嗓脊竟龟召臣议献诺典抄怯拒忍酸权袍荆罪蚕考疼席糖屑启迪钉鸵冠属俯喷枚箭浩筒陪毕暑煮枕束赤置孙泊愁寺榆畔酬珍懂叮嘱塌焦誓谎黎晕漆翩幕愈旷怡逸免延悔扶桨律榕纠颤桩涨塔暇郎爹嫂辆歹扔罕惯纱眉抛骗妻泳婚辈挨耻诲谓诵岂恒窥皆缺祭乃熏杭亥恃哀拘舅津斩限凯葛述衰刊泻潜渊鳞试胎皇履疆琐朴篇某昼耘桑晓浆傅袱桶障芝圣犯馅蝴蝶蚂樱拔瞎铲割轰堪诈傻捏怔承拴瓢逛矛盾誉吾妒忌曹督委惩鲁遮私丧瞪耀讥讽蔑锣赢寨擂呐插艘航肆帽桅撕逗唬钩冈饥恰府榜谋诡拖坠扭咧舱鸥瞄膛泄截拳喘酥尼斯艇纵艄翘垫帘姆岳摩遗祷雇簇哗码庆诊沃龄匪绷审剂施仪尊骏驰辽绵凳吆吭崭衷慈祥荣铃铛罐恢踢牲畜泽彭拟瑞锻炼眷赴搞梁禽殊签拇搔痒秽轧拧螺纽扣跤搂仗鞭欺挠扳腕剃貌仓渺涕享庸憎腮疤监侄喉咙",
+  6: "毯陈裳虹蹄腐羞涩微棚蔓苞蕾苔坪蔗瀑缀幽雅案拙薄糊恍缝谚德鹊蝉袖篷缩疯瓦墩甩嚷吱崖渡蒜酱炖唇蹦梯寇冀副榴抡贯棋悬沸簸涯涧雹叽屹悦屈莹裹篮蔼资慷慨贡滥盏栏汇爆泽渠宣帜阅基睹制坦距隆巍弦轴曝豁凛疙瘩卡棍悟裁筹谱莱茵盲纯键霎缕陶橡雕磕跺颓沮趴胯郑拜厨毡撒缚猬伶谜娥尚摄核倾揭斑俐窜燥漠磁御综锦萍藻漾焰削瞬凝咆哮嗓党淌哑揪呻废骤掷陡汹涌澎湃溅熄困唉淋嘿糟霉皱勺醋饺拌擦眨宵旦燃戚搓惶吻偎逝贩摊轿骆驼络锤凿焚腊粥腻栗咽匙灌搅稠阀避屉僻靴魔刑哼熬褐缸脏筷砖执绞宫侯素章盈脉栖鸦革彻迁泰迫批鼎标牺炊惧凄寞宴乏籍聊栅控援射俱弗矣辩贷剔袭覆稍脆拦怖蟋蟀藏挪徘徊蒸诞澡械授涡逆纬砂媚蚁叨绊谅耽揉绽域锲"
+};
+
+const GRADE_NAMES = {1:'一年级',2:'二年级',3:'三年级',4:'四年级',5:'五年级',6:'六年级'};
+
+let generated = [];
+
+function getCharData(char, grade) {
+  try {
+    // 拼音（带声调，取第一个读音）
+    let pinyin = '';
+    try {
+      const spell = cnchar.spell(char, 'tone');
+      pinyin = (Array.isArray(spell) ? spell[0] : spell) || '';
+    } catch(e) {}
+    pinyin = pinyin.toLowerCase();
+
+    // 笔顺名称
+    let strokes = [];
+    try {
+      const names = cnchar.stroke(char, 'order', 'name');
+      // cnchar 返回二维数组 [[...]]，取第一个子数组
+      let arr = Array.isArray(names) ? names : [];
+      if (arr.length && Array.isArray(arr[0])) arr = arr[0];
+      if (Array.isArray(arr) && arr.length) {
+        strokes = arr.map(n => {
+          // 处理 "横撇|横钩" 取第一个，去掉末尾数字如 "点2"
+          return String(n).split('|')[0].replace(/\d+$/, '');
+        });
+      }
+    } catch(e) {}
+
+    // 组词（取前3个2字词）
+    let words = [];
+    try {
+      const wl = cnchar.words(char) || [];
+      words = wl.filter(w => w.length === 2).slice(0, 3);
+    } catch(e) {}
+    if (words.length < 3) {
+      // 补充：用字+常见字凑词
+      const suffixes = ['人','子','头','手','心','日','月','水','火','山','石','田','土','大','小','多','少'];
+      for (const s of suffixes) {
+        if (words.length >= 3) break;
+        const w = char + s;
+        if (w.length === 2 && !words.includes(w)) words.push(w);
+      }
+    }
+
+    return {
+      char: char,
+      pinyin: pinyin || char,
+      strokes: strokes,
+      words: words.slice(0, 3),
+      grade: grade
+    };
+  } catch(e) {
+    return { char, pinyin: '', strokes: [], words: [], grade };
+  }
+}
+
+async function generate() {
+  const btn = document.getElementById('start');
+  btn.disabled = true;
+  const total = Object.values(GRADE_CHARS).reduce((s,c) => s + c.length, 0);
+  document.getElementById('total').textContent = total;
+  generated = [];
+  let count = 0;
+
+  for (const gradeStr in GRADE_CHARS) {
+    const grade = parseInt(gradeStr);
+    const chars = GRADE_CHARS[gradeStr];
+    for (const ch of chars) {
+      generated.push(getCharData(ch, grade));
+      count++;
+      if (count % 50 === 0) {
+        document.getElementById('progress').textContent = count;
+        document.getElementById('status').textContent =
+          `正在生成... 年级 ${grade}/6 (${GRADE_NAMES[grade]})`;
+        await new Promise(r => setTimeout(r, 10));
+      }
+    }
+  }
+
+  document.getElementById('progress').textContent = total;
+  document.getElementById('status').textContent = '生成完成！';
+
+  // 输出为 JS 模块格式
+  const output = 'const HANZI_DATA = ' + JSON.stringify(generated, null, 0) + ';\\n';
+  document.getElementById('output').value = output;
+  document.getElementById('copy').disabled = false;
+}
+
+document.getElementById('start').addEventListener('click', generate);
+document.getElementById('copy').addEventListener('click', () => {
+  const ta = document.getElementById('output');
+  ta.select();
+  document.execCommand('copy');
+  document.getElementById('copy').textContent = '已复制！';
+});
+
+// 检测 cnchar 是否加载
+window.addEventListener('load', () => {
+  if (typeof cnchar !== 'undefined') {
+    document.getElementById('status').textContent = 'cnchar 加载完成，可以开始生成';
+    document.getElementById('start').disabled = false;
+  } else {
+    document.getElementById('status').textContent = 'cnchar 加载失败，请检查网络';
+  }
+});
+</script>
+</body>
+</html>

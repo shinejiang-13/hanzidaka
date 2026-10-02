@@ -1,0 +1,15 @@
+# Build outputs
+.hvigor/
+build/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Temporary server script
+serve.js
