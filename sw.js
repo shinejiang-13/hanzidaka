@@ -1,7 +1,7 @@
-// 汉字打卡 Service Worker - 离线缓存
-const CACHE_NAME = 'hanzidaka-v1';
+// ???? Service Worker - ????
+const CACHE_NAME = 'hanzidaka-v2';
 
-// 预缓存的本地资源
+// ????????
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -9,24 +9,27 @@ const PRECACHE_URLS = [
   './icon-192.png',
   './icon-512.png',
   './css/style.css',
+  './js/auth.js',
+  './js/srs.js',
   './js/store.js',
   './js/reward.js',
+  './js/handwriting.js',
   './js/app.js',
   './js/hanzi-data.js'
 ];
 
-// 外部 CDN 资源（hanzi-writer 笔顺库）
+// ?? CDN ??(hanzi-writer ???)
 const CDN_URLS = [
   'https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js'
 ];
 
-// 安装：预缓存本地资源 + 尝试缓存 CDN
+// ??:??????? + ???? CDN
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      // 本地资源必须缓存成功
+      // ??????????
       await cache.addAll(PRECACHE_URLS);
-      // CDN 资源尽量缓存（失败不影响安装）
+      // CDN ??????(???????)
       try {
         await cache.addAll(CDN_URLS);
       } catch (e) {
@@ -38,7 +41,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// 激活：清理旧缓存
+// ??:?????
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -50,15 +53,29 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// 请求拦截：缓存优先策略
+// ????
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // 只处理 GET 请求
+  // ??? GET ??
   if (request.method !== 'GET') return;
 
-  // 本地静态资源：缓存优先，后台更新
+  // HTML ??:????(????????????)
+  if (request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
+    event.respondWith(
+      fetch(request).then((resp) => {
+        if (resp && resp.status === 200) {
+          const clone = resp.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(request, clone));
+        }
+        return resp;
+      }).catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // ??????(CSS/JS/??):????,????
   if (url.origin === location.origin) {
     event.respondWith(
       caches.match(request).then((cached) => {
@@ -75,7 +92,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // CDN 等跨域资源：缓存优先（不透明响应）
+  // CDN ?????:????(?????)
   event.respondWith(
     caches.match(request).then((cached) => {
       return cached || fetch(request).then((resp) => {
