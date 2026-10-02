@@ -1,934 +1,748 @@
-/* ============ ?? ============ */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
-body {
-  font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
-  background: radial-gradient(ellipse at top, #fdf6e8 0%, #f5ead3 100%);
-  color: #5c3a1e;
-  min-height: 100vh;
-  -webkit-tap-highlight-color: transparent;
-}
-.app {
-  max-width: 640px;
-  margin: 0 auto;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #fffdf7;
-  box-shadow: 0 0 30px rgba(120, 80, 30, 0.12);
-}
+/**
+ * 汉字打卡 - 主应用逻辑
+ * 流程: 主页(今日任务) → 学习(笔顺动画+拼音+组词) → 手写打卡 → 评分 → 记忆曲线调度
+ */
+(function () {
+  'use strict';
 
-/* ============ ?? ============ */
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
-  background: linear-gradient(180deg, #8b4513 0%, #6b3410 100%);
-  color: #fff8e7;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  box-shadow: 0 2px 8px rgba(107, 52, 16, 0.3);
-}
-.logo { font-size: 20px; font-weight: 700; font-family: "KaiTi", "??", "STKaiti", serif; letter-spacing: 2px; }
-.nav { display: flex; gap: 8px; }
-.nav-btn {
-  background: rgba(255, 248, 231, 0.15);
-  border: 1px solid rgba(255, 248, 231, 0.25);
-  color: #fff8e7;
-  padding: 6px 16px;
-  border-radius: 16px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all .2s;
-}
-.nav-btn.active, .nav-btn:hover { background: #fff8e7; color: #8b4513; font-weight: 600; }
+  // ---------- 全局状态 ----------
+  let currentGrade = Store.getCurrentGrade();
+  let currentQueue = [];   // 今日待处理汉字队列
+  let queueGrade = null;   // 当前队列对应的年级（用于判断是否需要重建）
+  let currentIndex = 0;
+  let currentHanzi = null;
+  let writer = null;       // hanziwriter 实例
+  let pad = null;          // 手写画板实例
 
-/* ============ ?? ============ */
-.main { flex: 1; padding: 16px; }
-.view { display: none; animation: fade .3s ease; }
-.view.active { display: block; }
-@keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  // ---------- DOM 引用 ----------
+  const $ = id => document.getElementById(id);
+  const views = {
+    home: $('view-home'),
+    learn: $('view-learn'),
+    write: $('view-write'),
+    stats: $('view-stats'),
+    reward: $('view-reward'),
+  };
 
-/* ============ ?? ============ */
-.card {
-  background: #fffdf7;
-  border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 14px;
-  box-shadow: 0 2px 10px rgba(120, 80, 30, 0.06);
-  border: 1px solid #e8d5b0;
-}
-.card-title { font-size: 16px; margin-bottom: 12px; color: #c0392b; font-weight: 600; }
-.card-row { margin-bottom: 12px; }
-.card-row:last-child { margin-bottom: 0; }
-.field-label { display: block; font-size: 13px; color: #a0784a; margin-bottom: 6px; }
-.select {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #e8d5b0;
-  border-radius: 8px;
-  font-size: 15px;
-  background: #fdf6e8;
-  color: #5c3a1e;
-}
-
-/* ============ ???? ============ */
-.stat-cards {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-bottom: 14px;
-}
-.stat-card {
-  background: #fffdf7;
-  border-radius: 12px;
-  padding: 14px 6px;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(120, 80, 30, 0.06);
-  border: 1px solid #f0e2c4;
-}
-.stat-num { font-size: 24px; font-weight: 700; color: #c0392b; font-family: "KaiTi", "??", serif; }
-.stat-label { font-size: 12px; color: #a0784a; margin-top: 4px; }
-
-/* ============ ??? ============ */
-.progress-wrap { display: flex; align-items: center; gap: 10px; }
-.progress-bar {
-  flex: 1;
-  height: 10px;
-  background: rgba(139, 90, 43, 0.1);
-  border-radius: 5px;
-  overflow: hidden;
-}
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #c9a96e, #b8860b);
-  width: 0;
-  transition: width .4s;
-}
-.progress-text { font-size: 13px; color: #a0784a; min-width: 50px; }
-
-/* ============ ?? ============ */
-.btn-primary {
-  background: linear-gradient(180deg, #c0392b 0%, #a93226 100%);
-  color: #fff8e7;
-  border: none;
-  padding: 12px 20px;
-  border-radius: 10px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all .2s;
-  font-weight: 600;
-  box-shadow: 0 2px 6px rgba(192, 57, 43, 0.3);
-}
-.btn-primary:hover:not(:disabled) { background: linear-gradient(180deg, #d35400 0%, #c0392b 100%); transform: translateY(-1px); }
-.btn-primary:disabled { background: #d4c4a0; cursor: not-allowed; box-shadow: none; }
-.btn-block { width: 100%; }
-.btn-ghost {
-  background: #fdf6e8;
-  color: #8b4513;
-  border: 1px solid #e8d5b0;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all .2s;
-}
-.btn-ghost:hover { background: #f5ead3; border-color: #d4a574; }
-.btn-row { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
-.btn-skip {
-  background: none;
-  border: none;
-  color: #a0784a;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-/* ============ ???? ============ */
-.due-list { display: flex; flex-wrap: wrap; gap: 8px; }
-.due-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: #fdf6e8;
-  border: 1px solid #e8d5b0;
-  border-radius: 10px;
-  padding: 8px 10px;
-  min-width: 60px;
-  position: relative;
-}
-.due-char { font-size: 24px; color: #5c3a1e; font-family: "KaiTi", "??", serif; }
-.due-pinyin { font-size: 11px; color: #c0392b; }
-.due-tag { font-size: 10px; margin-top: 2px; padding: 1px 6px; border-radius: 6px; }
-.due-remove {
-  position: absolute;
-  top: 2px; right: 4px;
-  background: none;
-  border: none;
-  color: #d4c4a0;
-  font-size: 14px;
-  cursor: pointer;
-  line-height: 1;
-  padding: 2px;
-}
-.due-remove:hover { color: #c0392b; }
-.due-master {
-  margin-top: 6px;
-  background: #eafaf0;
-  border: 1px solid #b7e4c7;
-  color: #2d8659;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all .15s;
-  white-space: nowrap;
-}
-.due-master:hover {
-  background: #2d8659;
-  color: #fff;
-}
-.due-master:active { transform: scale(0.95); }
-.new-tag { background: #fff3cd; color: #b8860b; }
-.review-tag { background: #e8d5b0; color: #8b5a2b; }
-.empty { color: #a0784a; text-align: center; padding: 20px; }
-.add-char-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
-#btn-add-char { flex: 1; }
-.add-char-input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #e8d5b0;
-  border-radius: 8px;
-  font-size: 15px;
-  outline: none;
-  background: #fdf6e8;
-  color: #5c3a1e;
-}
-.add-char-input:focus { border-color: #c0392b; }
-
-/* ============ ??? ============ */
-.learn-progress {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 4px;
-  color: #a0784a;
-  font-size: 14px;
-}
-.learn-card { text-align: center; }
-.learn-header { display: flex; justify-content: space-between; }
-.grade-tag, .level-tag {
-  font-size: 12px;
-  padding: 3px 10px;
-  border-radius: 10px;
-  background: #fdf6e8;
-  color: #8b4513;
-  border: 1px solid #e8d5b0;
-}
-
-/* ?? + ?? ???? */
-.char-stroke-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  margin: 8px 0 4px;
-}
-.char-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-.stroke-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  border-top: 1px solid #e8d5b0;
-  padding-top: 16px;
-}
-
-/* ?????????? */
-.char-tianzi {
-  position: relative;
-  width: 180px;
-  height: 180px;
-  border: 2px solid #c9a96e;
-  border-radius: 10px;
-  background: #fffdf7;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: inset 0 0 0 1px rgba(201, 169, 110, 0.3);
-}
-/* ?????? */
-.char-tianzi::before {
-  content: '';
-  position: absolute;
-  top: 0; bottom: 0; left: 50%;
-  width: 0;
-  border-left: 1px dashed rgba(201, 169, 110, 0.7);
-}
-/* ?????? */
-.char-tianzi::after {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; top: 50%;
-  height: 0;
-  border-top: 1px dashed rgba(201, 169, 110, 0.7);
-}
-.char-big {
-  font-family: "KaiTi", "??", "STKaiti", "Kaiti SC", "AR PL UKai CN", serif;
-  font-size: 120px;
-  font-weight: 400;
-  color: #2d1a0e;
-  line-height: 1;
-  position: relative;
-  z-index: 1;
-}
-.pinyin { font-size: 28px; color: #c0392b; margin: 12px 0 6px; font-weight: 500; }
-.words { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-.word-chip {
-  background: #fdf6e8;
-  color: #8b4513;
-  padding: 6px 12px;
-  border-radius: 14px;
-  font-size: 15px;
-  border: 1px solid #e8d5b0;
-}
-
-/* ============ ?? ============ */
-.writer-wrap {
-  display: flex;
-  justify-content: center;
-  padding: 10px 0;
-}
-.writer-fallback {
-  font-family: "KaiTi", "??", "STKaiti", "Kaiti SC", "AR PL UKai CN", serif;
-  font-size: 120px;
-  color: #2d1a0e;
-}
-.stroke-names {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
-  justify-content: center;
-}
-.stroke-step {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: #fdf6e8;
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #5c3a1e;
-  border: 1px solid #f0e2c4;
-}
-.stroke-step b {
-  background: #c0392b;
-  color: #fff8e7;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-}
-.quiz-hint { text-align: center; color: #b8860b; min-height: 20px; margin-top: 8px; font-size: 14px; }
-
-/* ?????? */
-.write-hint-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.write-hint-left {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-.write-hint-label { font-size: 14px; color: #a0784a; }
-.write-hint-char { font-family: "KaiTi", "??", "STKaiti", "Kaiti SC", "AR PL UKai CN", serif; font-size: 36px; font-weight: 400; color: #2d1a0e; }
-.write-hint-pinyin { font-size: 16px; color: #c0392b; }
-
-/* ============ ??? ============ */
-.write-wrap {
-  display: flex;
-  justify-content: center;
-  margin: 10px 0;
-}
-.write-canvas {
-  border: 2px solid #c9a96e;
-  border-radius: 10px;
-  background: #fffdf7;
-  touch-action: none;
-  max-width: 100%;
-  height: auto;
-  box-shadow: inset 0 0 0 1px rgba(201, 169, 110, 0.3);
-}
-
-/* ============ ?? ============ */
-.rating-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-.rate-btn {
-  padding: 12px 4px;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: transform .15s;
-  color: #fff8e7;
-}
-.rate-btn:hover { transform: translateY(-2px); }
-.rate-forgot { background: #c0392b; }
-.rate-hard { background: #d4a017; color: #5c3a1e; }
-.rate-good { background: #27ae60; }
-.rate-easy { background: #2980b9; }
-.rating-tip { text-align: center; color: #a0784a; font-size: 12px; margin-top: 10px; }
-
-/* ?????? */
-.auto-score {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  justify-content: center;
-  padding: 10px 0;
-}
-.score-emoji { font-size: 48px; }
-.score-detail { text-align: left; }
-.score-strokes { font-size: 15px; color: #7a5230; margin-bottom: 4px; }
-.score-strokes b { color: #c0392b; font-size: 18px; }
-.score-label { font-size: 17px; font-weight: 600; }
-.hidden { display: none !important; }
-
-/* ============ ??? ============ */
-.calendar {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-}
-.cal-cell {
-  aspect-ratio: 1;
-  border-radius: 6px;
-  background: rgba(139, 90, 43, 0.06);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: #a0784a;
-}
-.cal-some { background: #d4a017; color: #fff8e7; }
-.cal-many { background: #c0392b; color: #fff8e7; }
-.cal-today { outline: 2px solid #8b4513; }
-.cal-legend {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  justify-content: flex-end;
-  margin-top: 10px;
-  font-size: 12px;
-  color: #a0784a;
-}
-.cal-legend .cal-cell { width: 16px; height: 16px; aspect-ratio: auto; }
-
-.grade-progress { display: flex; flex-direction: column; gap: 10px; }
-.gp-row { display: flex; align-items: center; gap: 10px; }
-.gp-grade { width: 56px; font-size: 14px; color: #7a5230; }
-.gp-bar {
-  flex: 1;
-  height: 12px;
-  background: rgba(139, 90, 43, 0.08);
-  border-radius: 6px;
-  overflow: hidden;
-}
-.gp-bar > div {
-  height: 100%;
-  background: linear-gradient(90deg, #c9a96e, #b8860b);
-  transition: width .4s;
-}
-.gp-num { font-size: 13px; color: #a0784a; min-width: 50px; text-align: right; }
-
-/* ============ ???? ============ */
-.tip-card .tip { font-size: 14px; line-height: 1.7; color: #7a5230; }
-.curve-list { margin: 8px 0 0 18px; color: #7a5230; font-size: 13px; line-height: 1.9; }
-.curve-list b { color: #c0392b; }
-
-/* ============ ?? ============ */
-.footer {
-  text-align: center;
-  padding: 14px;
-  font-size: 12px;
-  color: #a0784a;
-  background: #f5ead3;
-  font-family: "KaiTi", "??", serif;
-  letter-spacing: 1px;
-}
-
-/* ============ ???(??????) ============ */
-#view-reward {
-  background:
-    radial-gradient(ellipse at top, #fdf6e8 0%, #f5ead3 100%);
-  padding: 20px 16px 32px;
-}
-
-/* ---- ?? ---- */
-.honor-scroll {
-  position: relative;
-  margin: 8px 0 20px;
-  filter: drop-shadow(0 6px 16px rgba(120, 80, 30, 0.18));
-}
-.scroll-rod {
-  height: 14px;
-  background: linear-gradient(180deg, #a0522d 0%, #6b3410 50%, #8b4513 100%);
-  border-radius: 7px;
-  position: relative;
-}
-.scroll-rod::before, .scroll-rod::after {
-  content: '';
-  position: absolute;
-  top: -3px;
-  width: 18px; height: 20px;
-  background: radial-gradient(circle, #c9a96e 0%, #8b6914 100%);
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-}
-.scroll-rod::before { left: -6px; }
-.scroll-rod::after { right: -6px; }
-.scroll-rod-top { border-radius: 7px 7px 0 0; }
-.scroll-rod-bottom { border-radius: 0 0 7px 7px; }
-
-.scroll-body {
-  background:
-    repeating-linear-gradient(0deg, rgba(180,140,80,0.04) 0px, rgba(180,140,80,0.04) 1px, transparent 1px, transparent 28px),
-    linear-gradient(180deg, #fdf4dc 0%, #faecd0 50%, #fdf4dc 100%);
-  padding: 22px 20px 18px;
-  border-left: 3px solid #d4a574;
-  border-right: 3px solid #d4a574;
-  text-align: center;
-}
-.scroll-title {
-  font-size: 14px;
-  color: #8b5a2b;
-  letter-spacing: 6px;
-  margin-bottom: 16px;
-  font-weight: 600;
-}
-
-.honor-display {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-.honor-seal {
-  width: 62px; height: 62px;
-  background: #c0392b;
-  color: #fff8e7;
-  font-size: 32px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  font-family: "KaiTi", "??", "STKaiti", serif;
-  box-shadow: inset 0 0 0 2px #a93226, 0 2px 6px rgba(192,57,43,0.4);
-  opacity: 0.35;
-  transition: all .4s;
-}
-.honor-seal.sealed {
-  opacity: 1;
-  transform: rotate(-4deg);
-}
-.honor-info { text-align: left; }
-.honor-rank {
-  font-size: 28px;
-  font-weight: 700;
-  color: #7a5230;
-  font-family: "KaiTi", "??", "STKaiti", serif;
-  line-height: 1.2;
-}
-.honor-rank.honored {
-  background: linear-gradient(135deg, #b8860b 0%, #d4a017 50%, #b8860b 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.honor-next {
-  font-size: 13px;
-  color: #a0784a;
-  margin-top: 6px;
-}
-
-/* ????? */
-.honor-progress-wrap { margin-top: 4px; }
-.honor-progress-bar {
-  height: 14px;
-  background: rgba(139, 90, 43, 0.12);
-  border-radius: 7px;
-  overflow: hidden;
-  border: 1px solid rgba(139, 90, 43, 0.2);
-}
-.honor-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #c9a96e 0%, #d4a017 50%, #c9a96e 100%);
-  border-radius: 7px;
-  transition: width .6s ease;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
-}
-.honor-progress-text {
-  margin-top: 8px;
-  font-size: 14px;
-  color: #7a5230;
-}
-.honor-progress-text span:first-child {
-  font-size: 22px;
-  font-weight: 700;
-  color: #b8860b;
-}
-.honor-progress-text .unit { font-size: 13px; color: #a0784a; margin: 0 2px; }
-.honor-progress-text .divider { color: #c9a96e; margin: 0 6px; }
-
-/* ---- ?????? ---- */
-.reward-sources {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-.source-card {
-  flex: 1;
-  background: #fffdf7;
-  border: 1px solid #e8d5b0;
-  border-radius: 12px;
-  padding: 14px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  box-shadow: 0 2px 8px rgba(120, 80, 30, 0.06);
-}
-.source-icon { font-size: 30px; }
-.source-body { flex: 1; }
-.source-name { font-size: 14px; font-weight: 600; color: #5c3a1e; }
-.source-desc { font-size: 11px; color: #a0784a; margin-top: 2px; line-height: 1.4; }
-.source-amount {
-  margin-top: 6px;
-  font-size: 24px;
-  font-weight: 700;
-  color: #c0392b;
-  font-family: "KaiTi", "??", serif;
-}
-.source-amount em { font-size: 13px; font-style: normal; color: #a0784a; margin-left: 2px; }
-
-/* ---- ???? ---- */
-.tier-ladder-card {
-  background: #fffdf7;
-  border: 1px solid #e8d5b0;
-}
-.tier-ladder { display: flex; flex-direction: column; gap: 8px; }
-.ladder-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: rgba(139, 90, 43, 0.04);
-  opacity: 0.55;
-  transition: all .3s;
-}
-.ladder-row.reached {
-  background: linear-gradient(90deg, rgba(212,160,23,0.12) 0%, rgba(212,160,23,0.04) 100%);
-  opacity: 1;
-}
-.ladder-no {
-  width: 24px; height: 24px;
-  border-radius: 50%;
-  background: #d4c4a0;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.ladder-row.reached .ladder-no {
-  background: linear-gradient(135deg, #c9a96e, #b8860b);
-  box-shadow: 0 1px 4px rgba(184,134,11,0.4);
-}
-.ladder-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #7a5230;
-  width: 72px;
-  flex-shrink: 0;
-  font-family: "KaiTi", "??", serif;
-}
-.ladder-row.reached .ladder-name { color: #b8860b; }
-.ladder-bar {
-  flex: 1;
-  height: 8px;
-  background: rgba(139, 90, 43, 0.1);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.ladder-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #c9a96e, #d4a017);
-  border-radius: 4px;
-  transition: width .5s ease;
-}
-.ladder-threshold {
-  font-size: 12px;
-  color: #a0784a;
-  width: 42px;
-  text-align: right;
-  flex-shrink: 0;
-}
-.ladder-row.reached .ladder-threshold { color: #b8860b; font-weight: 600; }
-
-.reward-footer-tip {
-  text-align: center;
-  font-size: 13px;
-  color: #a0784a;
-  margin-top: 20px;
-  font-family: "KaiTi", "??", serif;
-  letter-spacing: 2px;
-}
-
-/* ============ ??? ============ */
-@media (max-width: 480px) {
-  .stat-cards { grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .stat-num { font-size: 20px; }
-  .char-tianzi { width: 140px; height: 140px; }
-  .char-big { font-size: 96px; }
-  .char-stroke-col { gap: 12px; }
-  .honor-rank { font-size: 22px; }
-  .honor-seal { width: 52px; height: 52px; font-size: 26px; }
-  .reward-sources { flex-direction: column; }
-  .ladder-name { width: 60px; font-size: 13px; }
-  .rating-row { grid-template-columns: repeat(2, 1fr); }
-}
-
-/* ============ ???? ============ */
-.login-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(ellipse at top, #fdf6e8 0%, #e8d5b0 100%);
-  padding: 20px;
-}
-.login-overlay.hidden { display: none; }
-
-.login-card {
-  background: #fffdf7;
-  border-radius: 24px;
-  padding: 36px 28px 28px;
-  width: 100%;
-  max-width: 360px;
-  box-shadow: 0 20px 60px rgba(120, 80, 30, 0.2);
-  border: 1px solid rgba(139, 69, 19, 0.12);
-}
-
-.login-logo {
-  text-align: center;
-  font-size: 56px;
-  margin-bottom: 8px;
-}
-.login-title {
-  text-align: center;
-  font-family: "KaiTi", "??", "STKaiti", serif;
-  font-size: 28px;
-  color: #8b4513;
-  letter-spacing: 4px;
-  margin-bottom: 4px;
-}
-.login-subtitle {
-  text-align: center;
-  font-size: 13px;
-  color: #a0784a;
-  margin-bottom: 24px;
-}
-
-.login-tabs {
-  display: flex;
-  background: #f5ead3;
-  border-radius: 12px;
-  padding: 4px;
-  margin-bottom: 20px;
-}
-.login-tab {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  background: transparent;
-  color: #a0784a;
-  font-size: 15px;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.login-tab.active {
-  background: #8b4513;
-  color: #fff8e7;
-}
-
-.login-form { display: flex; flex-direction: column; gap: 12px; }
-.login-form.hidden { display: none; }
-
-.login-input {
-  width: 100%;
-  padding: 14px 16px;
-  border: 2px solid #e8d5b0;
-  border-radius: 12px;
-  font-size: 15px;
-  background: #fffdf7;
-  color: #5c3a1e;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.login-input:focus {
-  border-color: #8b4513;
-}
-.login-input::placeholder { color: #c4a87a; }
-
-.login-submit {
-  width: 100%;
-  padding: 14px;
-  border: none;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #8b4513 0%, #6b3410 100%);
-  color: #fff8e7;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 8px;
-  cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.2s;
-  box-shadow: 0 4px 12px rgba(107, 52, 16, 0.3);
-}
-.login-submit:active { transform: scale(0.98); }
-
-.login-message {
-  text-align: center;
-  font-size: 13px;
-  min-height: 18px;
-  color: #c0392b;
-}
-
-/* ????????? */
-.existing-users {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px dashed #e8d5b0;
-}
-.existing-users.hidden { display: none; }
-.existing-users-label {
-  font-size: 12px;
-  color: #a0784a;
-  text-align: center;
-  margin-bottom: 8px;
-}
-.existing-users-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: center;
-}
-.existing-user-chip {
-  background: #fdf6e8;
-  border: 1px solid #e8d5b0;
-  color: #8b4513;
-  font-size: 13px;
-  padding: 5px 12px;
-  border-radius: 14px;
-  cursor: pointer;
-  transition: all .15s;
-}
-.existing-user-chip:hover {
-  background: #8b4513;
-  color: #fff8e7;
-}
-
-/* ============ ????(??) ============ */
-.user-area {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.user-name {
-  font-size: 14px;
-  color: #fff8e7;
-  max-width: 80px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.logout-btn {
-  background: rgba(255, 248, 231, 0.15);
-  border: 1px solid rgba(255, 248, 231, 0.3);
-  color: #fff8e7;
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.logout-btn:hover { background: rgba(255, 248, 231, 0.25); }
-
-@media (max-width: 480px) {
-  .user-name { display: none; }
-
-  /* ????? */
-  .topbar {
-    padding: 10px 16px;
-    gap: 8px;
-  }
-  .logo { font-size: 17px; letter-spacing: 1px; }
-  .logout-btn { padding: 5px 10px; font-size: 12px; }
-
-  /* ????????? */
-  .nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    background: linear-gradient(180deg, #6b3410 0%, #8b4513 100%);
-    padding: 6px 8px;
-    padding-bottom: calc(6px + env(safe-area-inset-bottom));
-    gap: 4px;
-    box-shadow: 0 -2px 12px rgba(107, 52, 16, 0.35);
-  }
-  .nav-btn {
-    flex: 1;
-    padding: 8px 4px;
-    font-size: 13px;
-    border-radius: 10px;
-    border: none;
-    background: transparent;
-    color: rgba(255, 248, 231, 0.75);
-  }
-  .nav-btn.active, .nav-btn:hover {
-    background: rgba(255, 248, 231, 0.18);
-    color: #fff8e7;
+  // ---------- 数据辅助 ----------
+  function getByGrade(grade) {
+    return HANZI_DATA.filter(h => h.grade === grade);
   }
 
-  /* ??????????? */
-  .main { padding-bottom: 72px; }
-  .footer { margin-bottom: 56px; }
-}
+  function getGrades() {
+    const grades = [...new Set(HANZI_DATA.map(h => h.grade))];
+    return grades.sort((a, b) => a - b);
+  }
+
+  // ---------- 视图切换 ----------
+  function showView(name) {
+    Object.values(views).forEach(v => v.classList.remove('active'));
+    views[name].classList.add('active');
+    // 切换导航高亮
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    const navMap = { home: 'nav-home', stats: 'nav-stats', reward: 'nav-reward' };
+    if (navMap[name]) $(navMap[name]).classList.add('active');
+    if (name === 'home') renderHome();
+    if (name === 'stats') renderStats();
+    if (name === 'reward') renderRewards();
+  }
+
+  // ---------- 主页 ----------
+  function renderHome() {
+    $('grade-select').value = currentGrade;
+    // 仅当年级变化时重建队列，保留用户对清单的增删编辑
+    if (queueGrade !== currentGrade) {
+      buildTodayQueue();
+      queueGrade = currentGrade;
+    }
+
+    const due = currentQueue;
+    const todayCount = Store.getTodayCheckins().length;
+    const streak = Store.getStreak();
+    const mastered = Store.getAllDoneCount();
+    const learning = Store.getLearningCount();
+    const total = HANZI_DATA.length;
+
+    $('stat-today').textContent = todayCount;
+    $('stat-streak').textContent = streak;
+    $('stat-due').textContent = due.length;
+    $('stat-mastered').textContent = mastered;
+    $('stat-progress').textContent = `${mastered}/${total}`;
+    $('bar-progress').style.width = `${total ? Math.round(mastered / total * 100) : 0}%`;
+
+    // 待学列表
+    const list = $('due-list');
+    list.innerHTML = '';
+    if (due.length === 0) {
+      list.innerHTML = '<div class="empty">清单为空，请在下方添加汉字</div>';
+    } else {
+      due.forEach((h, idx) => {
+        const item = document.createElement('div');
+        item.className = 'due-item';
+        const state = Store.getState(h.char);
+        const label = state ? SRS.getLevelLabel(state) : '新字';
+        const tag = state && state.status === 'new' ? 'new-tag' : 'review-tag';
+        item.innerHTML = `
+          <button class="due-remove" data-idx="${idx}" title="移除">×</button>
+          <span class="due-char">${h.char}</span>
+          <span class="due-pinyin">${h.pinyin}</span>
+          <span class="due-tag ${tag}">${label}</span>
+          <button class="due-master" data-char="${h.char}" title="标记为已掌握">✓ 已掌握</button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    $('btn-start').disabled = due.length === 0;
+    $('btn-start').textContent = due.length === 0 ? '清单为空' : `开始学习 (${due.length})`;
+  }
+
+  /** 构建今日队列：到期复习的字 + 新字 */
+  function buildTodayQueue() {
+    const gradeChars = getByGrade(currentGrade);
+    const states = Store.getStates();
+
+    const due = [];
+    const fresh = [];
+    gradeChars.forEach(h => {
+      const s = states[h.char];
+      if (!s) {
+        fresh.push(h);
+      } else if (s.status === 'mastered') {
+        // 已掌握的字不再出现在清单中
+        return;
+      } else if (SRS.isDue(s)) {
+        due.push(h);
+      }
+    });
+    // 先复习到期的，再学新字（每天最多 5 个新字）
+    currentQueue = due.concat(fresh.slice(0, 5));
+    currentIndex = 0;
+  }
+
+  /** 从清单中移除指定索引的字 */
+  function removeFromQueue(idx) {
+    currentQueue.splice(idx, 1);
+    renderHome();
+  }
+
+  /** 将指定汉字标记为已掌握，并从清单中移除 */
+  function markAsMastered(char) {
+    let state = Store.getState(char);
+    if (!state) {
+      state = SRS.createState(char);
+    }
+    state.level = SRS.MAX_LEVEL;
+    state.status = 'mastered';
+    state.nextReview = null;
+    Store.setState(char, state);
+
+    // 从当前队列移除
+    const idx = currentQueue.findIndex(h => h.char === char);
+    if (idx >= 0) currentQueue.splice(idx, 1);
+
+    // 同步统计（已掌握数 +1）
+    renderHome();
+  }
+
+  /** 按年级汉字列表顺序，添加下一个不在清单中的字 */
+  function addToQueue() {
+    const gradeChars = getByGrade(currentGrade);
+    const queueChars = new Set(currentQueue.map(h => h.char));
+    const next = gradeChars.find(h => !queueChars.has(h.char));
+    if (!next) {
+      alert('当前年级汉字已全部在清单中');
+      return;
+    }
+    currentQueue.push(next);
+    renderHome();
+  }
+
+  /** 重置清单为默认（到期复习 + 新字） */
+  function resetQueue() {
+    buildTodayQueue();
+    renderHome();
+  }
+
+  // ---------- 学习流程 ----------
+  function startLearning() {
+    if (currentQueue.length === 0) {
+      alert('清单为空，请先添加汉字！');
+      return;
+    }
+    currentIndex = 0;
+    showCurrentHanzi();
+    showView('learn');
+  }
+
+  function showCurrentHanzi() {
+    if (currentIndex >= currentQueue.length) {
+      // 今日队列完成
+      finishToday();
+      return;
+    }
+    currentHanzi = currentQueue[currentIndex];
+    const h = currentHanzi;
+
+    $('learn-char').textContent = h.char;
+    $('learn-pinyin').textContent = h.pinyin;
+    $('learn-grade').textContent = `${h.grade}年级`;
+    $('learn-words').innerHTML = h.words.map(w => `<span class="word-chip">${w}</span>`).join('');
+
+    // 笔顺名称
+    $('stroke-names').innerHTML = h.strokes.map((s, i) =>
+      `<span class="stroke-step"><b>${i + 1}</b>${s}</span>`
+    ).join('');
+
+    // 状态信息
+    const state = Store.getState(h.char);
+    if (state) {
+      $('learn-level').textContent = `熟练度: ${SRS.getLevelLabel(state)} · 已复习${state.repetitions}次`;
+    } else {
+      $('learn-level').textContent = '新字 · 首次学习';
+    }
+
+    // 笔顺动画
+    if (writer) writer = null;
+    $('writer-target').innerHTML = '';
+    $('writer-target').dataset.char = h.char;
+    loadWriter(h.char);
+
+    // 重置手写板 & 评分区
+    if (pad) pad.clear();
+    $('rating-area').classList.add('hidden');
+    $('btn-finish-write').disabled = true;
+
+    // 同步手写页提示信息
+    $('write-char').textContent = h.char;
+    $('write-pinyin').textContent = h.pinyin;
+    // 重置提示可见性（默认隐藏）
+    const hintLeft = document.querySelector('.write-hint-left');
+    if (hintLeft) hintLeft.style.display = 'none';
+    const toggleBtn = $('btn-toggle-hint');
+    if (toggleBtn) toggleBtn.textContent = '👁️ 显示提示';
+
+    $('progress-text').textContent = `${currentIndex + 1} / ${currentQueue.length}`;
+    $('write-progress-text').textContent = `${currentIndex + 1} / ${currentQueue.length}`;
+  }
+
+  // ---------- 跳转到手写打卡页 ----------
+  function goWrite() {
+    showView('write');
+    if (pad) pad.clear();
+    $('rating-area').classList.add('hidden');
+    $('btn-finish-write').disabled = true;
+  }
+
+  // ---------- 返回笔顺学习页 ----------
+  function goBackToLearn() {
+    showView('learn');
+  }
+
+  // ---------- 切换汉字提示显隐 ----------
+  function toggleHint() {
+    const hintLeft = document.querySelector('.write-hint-left');
+    const btn = $('btn-toggle-hint');
+    if (hintLeft.style.display === 'none') {
+      hintLeft.style.display = '';
+      btn.textContent = '🙈 隐藏提示';
+    } else {
+      hintLeft.style.display = 'none';
+      btn.textContent = '👁️ 显示提示';
+    }
+  }
+
+  function loadWriter(char) {
+    if (typeof HanziWriter === 'undefined') {
+      $('writer-target').innerHTML = '<div class="writer-fallback">' + char + '</div>';
+      return;
+    }
+    try {
+      writer = HanziWriter.create('writer-target', char, {
+        width: 220,
+        height: 220,
+        padding: 10,
+        showOutline: true,
+        strokeColor: '#2c3e50',
+        outlineColor: '#dfe6e9',
+        radicalColor: '#e17055',
+        delayBetweenStrokes: 200,
+        // 加载完成后自动循环演示笔顺
+        onLoadCharDataSuccess: () => {
+          writer.loopCharacterAnimation();
+        },
+      });
+    } catch (e) {
+      $('writer-target').innerHTML = '<div class="writer-fallback">' + char + '</div>';
+    }
+  }
+
+  function playStroke() {
+    // 重播：先暂停当前循环，再单次演示一遍
+    if (writer) {
+      writer.cancelQuiz();
+      writer.animateCharacter();
+    }
+  }
+
+  function quizStroke() {
+    if (!writer) return;
+    writer.quiz({
+      onMistake: (data) => {
+        $('quiz-hint').textContent = '笔画不对，再试试～';
+      },
+      onCorrectStroke: () => {
+        $('quiz-hint').textContent = '✓ 正确！';
+      },
+      onComplete: () => {
+        $('quiz-hint').textContent = '🎉 全部笔画正确！';
+      },
+    });
+  }
+
+  function onInkChange() {
+    $('btn-finish-write').disabled = !pad.hasInk();
+  }
+
+  /**
+   * 笔画名称 → 期望方向（起止点向量方向）
+   * 方向: E=东(横) S=南(竖) SW=西南(撇) SE=东南(捺/点) NE=东北(提)
+   * 复合笔画取主笔方向
+   */
+  const STROKE_DIR = {
+    '横': ['E'], '竖': ['S'], '撇': ['SW'], '捺': ['SE'],
+    '点': ['SE', 'S'], '提': ['NE'],
+    '横折': ['E'], '竖折': ['S'], '撇折': ['SW'], '横撇': ['E'],
+    '横钩': ['E'], '竖钩': ['S'], '斜钩': ['SE'], '卧钩': ['SE'],
+    '竖弯钩': ['S'], '横折钩': ['E'], '横撇弯钩': ['E'], '横折提': ['E'],
+    '竖折折钩': ['S'], '横折折撇': ['E'], '撇点': ['SW'],
+    '竖提': ['S'], '横折弯': ['E'],
+  };
+
+  /** 将向量 (dx, dy) 归类为方向 */
+  function dirOf(dx, dy) {
+    const len = Math.hypot(dx, dy);
+    if (len < 8) return null; // 太短，视为点/无效
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI; // -180~180
+    if (angle >= -22.5 && angle < 22.5) return 'E';
+    if (angle >= 22.5 && angle < 67.5) return 'SE';
+    if (angle >= 67.5 && angle < 112.5) return 'S';
+    if (angle >= 112.5 && angle < 157.5) return 'SW';
+    if (angle >= -67.5 && angle < -22.5) return 'NE';
+    if (angle >= -112.5 && angle < -67.5) return 'N';
+    if (angle >= -157.5 && angle < -112.5) return 'NW';
+    return 'W';
+  }
+
+  /** 计算笔顺正确率 */
+  function calcStrokeOrderAccuracy(userStrokes, standardStrokes) {
+    if (!userStrokes || userStrokes.length === 0) return 0;
+    const n = Math.min(userStrokes.length, standardStrokes.length);
+    let correct = 0;
+    for (let i = 0; i < n; i++) {
+      const s = userStrokes[i];
+      const dir = dirOf(s.end.x - s.start.x, s.end.y - s.start.y);
+      const expect = STROKE_DIR[standardStrokes[i]] || null;
+      // 方向匹配，或该笔太短（点）视为正确
+      if (dir === null || (expect && expect.includes(dir))) correct++;
+    }
+    return correct / standardStrokes.length; // 以标准笔画数为分母
+  }
+
+  /** 综合笔画数与笔顺正确率自动评分 */
+  function autoScore() {
+    const drawn = pad.getStrokeCount();
+    const expected = currentHanzi.strokes.length;
+    const userStrokes = pad.getStrokes();
+    const diff = Math.abs(drawn - expected);
+    const orderAcc = calcStrokeOrderAccuracy(userStrokes, currentHanzi.strokes);
+
+    // 综合得分: 笔画数占 40%，笔顺正确率占 60%
+    let countScore;
+    if (drawn === 0) countScore = 0;
+    else if (diff === 0) countScore = 1;
+    else if (diff === 1) countScore = 0.7;
+    else if (diff <= 3) countScore = 0.4;
+    else countScore = 0.1;
+
+    const total = countScore * 0.4 + orderAcc * 0.6;
+
+    let rating, label, emoji, color;
+    if (drawn === 0) {
+      rating = SRS.RATING.FORGOT; label = '未书写'; emoji = '😵'; color = '#ff7675';
+    } else if (total >= 0.9) {
+      rating = SRS.RATING.EASY; label = '笔画与笔顺都正确'; emoji = '🤩'; color = '#74b9ff';
+    } else if (total >= 0.7) {
+      rating = SRS.RATING.GOOD; label = '基本正确，笔顺尚可'; emoji = '😊'; color = '#55efc4';
+    } else if (total >= 0.4) {
+      rating = SRS.RATING.HARD; label = '笔画或笔顺出入较大'; emoji = '😣'; color = '#fdcb6e';
+    } else {
+      rating = SRS.RATING.FORGOT; label = '笔画与笔顺都需加强'; emoji = '😵'; color = '#ff7675';
+    }
+
+    const orderPct = Math.round(orderAcc * 100);
+    const box = $('auto-score');
+    box.innerHTML = `
+      <div class="score-emoji" style="color:${color}">${emoji}</div>
+      <div class="score-detail">
+        <div class="score-strokes">你写了 <b>${drawn}</b> 笔 / 标准 <b>${expected}</b> 笔</div>
+        <div class="score-strokes">笔顺正确率 <b>${orderPct}%</b></div>
+        <div class="score-label" style="color:${color}">自动评为：${label}</div>
+      </div>
+    `;
+    return { rating, score: total };
+  }
+
+  function finishWriting() {
+    if (!pad.hasInk()) {
+      alert('请先在田字格中书写汉字');
+      return;
+    }
+    // 自动评分
+    const { rating, score } = autoScore();
+    $('rating-area').classList.remove('hidden');
+
+    // 1.6 秒后自动提交评分并进入下一字
+    setTimeout(() => {
+      rate(rating, score);
+    }, 1600);
+  }
+
+  function rate(rating, score) {
+    const char = currentHanzi.char;
+    let state = Store.getState(char);
+    if (!state) state = SRS.createState(char);
+    state = SRS.review(state, rating);
+    Store.setState(char, state);
+    Store.addCheckin(char);
+
+    // 记录今日得分，并检查奖励
+    if (typeof score === 'number') Store.addDailyScore(score);
+    Reward.checkCompletionReward();
+    const streak = Store.getStreak();
+    Reward.checkStreakReward(streak);
+
+    currentIndex++;
+    showCurrentHanzi();
+    showView('learn');
+  }
+
+  function finishToday() {
+    showView('home');
+    renderHome();
+    setTimeout(() => {
+      alert('🎉 今日学习任务全部完成！明天根据记忆曲线继续复习。');
+    }, 300);
+  }
+
+  function skipCurrent() {
+    currentIndex++;
+    showCurrentHanzi();
+    showView('learn');
+  }
+
+  // ---------- 统计页 ----------
+  function renderStats() {
+    const states = Store.getStates();
+    const checkins = Store.getCheckins();
+    const mastered = Object.values(states).filter(s => s.status === 'mastered').length;
+    const learning = Object.values(states).filter(s => s.status === 'learning').length;
+    const fresh = getByGrade(currentGrade).length - Object.keys(states).length;
+    const total = HANZI_DATA.length;
+
+    $('stats-mastered').textContent = mastered;
+    $('stats-learning').textContent = learning;
+    $('stats-fresh').textContent = Math.max(0, fresh);
+    $('stats-total').textContent = total;
+
+    // 打卡日历（最近 35 天）
+    renderCalendar(checkins);
+
+    // 各年级进度
+    const gradeProgress = getGrades().map(g => {
+      const chars = getByGrade(g);
+      const done = chars.filter(c => states[c.char] && states[c.char].status === 'mastered').length;
+      return { grade: g, done, total: chars.length };
+    });
+    $('grade-progress').innerHTML = gradeProgress.map(g => `
+      <div class="gp-row">
+        <span class="gp-grade">${g.grade}年级</span>
+        <div class="gp-bar"><div style="width:${g.total ? Math.round(g.done / g.total * 100) : 0}%"></div></div>
+        <span class="gp-num">${g.done}/${g.total}</span>
+      </div>
+    `).join('');
+  }
+
+  function renderRewards() {
+    const summary = Reward.getSummary();
+    const total = summary.total;
+
+    // 称号 & 下一档次提示
+    if (summary.tier) {
+      $('reward-honor-name').textContent = summary.tier.name;
+      $('reward-honor-name').classList.add('honored');
+      $('honor-seal').textContent = summary.tier.name.charAt(0);
+      $('honor-seal').classList.add('sealed');
+    } else {
+      $('reward-honor-name').textContent = '尚未获得称号';
+      $('reward-honor-name').classList.remove('honored');
+      $('honor-seal').textContent = '墨';
+      $('honor-seal').classList.remove('sealed');
+    }
+
+    if (summary.nextTier) {
+      $('reward-honor-next').textContent = `距「${summary.nextTier.name}」还需 ${summary.nextTier.threshold - total} 元`;
+    } else {
+      $('reward-honor-next').textContent = '已臻化境，字圣先生 🎉';
+    }
+
+    // 奖励金额
+    $('reward-completion').textContent = summary.completionTotal;
+    $('reward-streak').textContent = summary.streakTotal;
+    $('reward-total-big').textContent = total;
+
+    // 累计进度条
+    const nextThreshold = summary.nextTier ? summary.nextTier.threshold : summary.tier ? summary.tier.threshold : 10;
+    $('reward-next-threshold').textContent = nextThreshold;
+    const prevThreshold = summary.tier ? summary.tier.threshold : 0;
+    const range = nextThreshold - prevThreshold;
+    const progress = range > 0 ? Math.min(100, Math.max(0, ((total - prevThreshold) / range) * 100)) : 100;
+    $('honor-progress-fill').style.width = progress + '%';
+
+    // 称号阶梯
+    const tiers = Reward.getTiers();
+    $('tier-ladder').innerHTML = tiers.map((t, idx) => {
+      const reached = total >= t.threshold;
+      const prevT = idx === 0 ? 0 : tiers[idx - 1].threshold;
+      const w = t.threshold - prevT;
+      // 当前所在档的进度条填充
+      let fill = 0;
+      if (total >= t.threshold) fill = 100;
+      else if (total > prevT) fill = ((total - prevT) / w) * 100;
+      return `<div class="ladder-row ${reached ? 'reached' : ''}">
+        <div class="ladder-no">${idx + 1}</div>
+        <div class="ladder-name">${t.name}</div>
+        <div class="ladder-bar"><div class="ladder-fill" style="width:${fill}%"></div></div>
+        <div class="ladder-threshold">${t.threshold}元</div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderCalendar(checkins) {
+    const cal = $('calendar');
+    cal.innerHTML = '';
+    const today = new Date();
+    // 生成最近 35 天，从周一开始
+    const cells = [];
+    const days = 35;
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const count = (checkins[ds] || []).length;
+      let cls = 'cal-cell';
+      if (count > 0) cls += count >= 5 ? ' cal-many' : ' cal-some';
+      if (ds === SRS.today()) cls += ' cal-today';
+      cells.push(`<div class="${cls}" title="${ds}: ${count}字">${count || ''}</div>`);
+    }
+    cal.innerHTML = cells.join('');
+  }
+
+  // ---------- 事件绑定 ----------
+  function bindEvents() {
+    $('grade-select').addEventListener('change', e => {
+      currentGrade = parseInt(e.target.value);
+      Store.setCurrentGrade(currentGrade);
+      queueGrade = null; // 年级变化，标记需要重建队列
+      renderHome();
+    });
+
+    $('btn-start').addEventListener('click', startLearning);
+    $('nav-home').addEventListener('click', () => showView('home'));
+    $('nav-stats').addEventListener('click', () => showView('stats'));
+    $('nav-reward').addEventListener('click', () => showView('reward'));
+
+    // 清单编辑：移除单个字 / 标记已掌握（事件委托）
+    $('due-list').addEventListener('click', e => {
+      const removeBtn = e.target.closest('.due-remove');
+      if (removeBtn) {
+        const idx = parseInt(removeBtn.dataset.idx);
+        if (!isNaN(idx)) removeFromQueue(idx);
+        return;
+      }
+      const masterBtn = e.target.closest('.due-master');
+      if (masterBtn) {
+        const char = masterBtn.dataset.char;
+        if (char) markAsMastered(char);
+        return;
+      }
+    });
+
+    // 清单编辑：按顺序添加汉字
+    $('btn-add-char').addEventListener('click', addToQueue);
+
+    // 清单编辑：重置
+    $('btn-reset-queue').addEventListener('click', resetQueue);
+
+    $('btn-play').addEventListener('click', playStroke);
+    $('btn-quiz').addEventListener('click', quizStroke);
+
+    // 学习页 → 手写页
+    $('btn-go-write').addEventListener('click', goWrite);
+
+    // 手写页
+    $('btn-write-back').addEventListener('click', goBackToLearn);
+    $('btn-toggle-hint').addEventListener('click', toggleHint);
+    $('btn-clear').addEventListener('click', () => pad.clear());
+    $('btn-finish-write').addEventListener('click', finishWriting);
+    $('btn-skip').addEventListener('click', skipCurrent);
+  }
+
+  // ---------- 初始化手写板 ----------
+  function initPad() {
+    const canvas = $('write-canvas');
+    pad = HandwritingPad.init(canvas, {
+      size: 280,
+      color: '#2d3436',
+      width: 7,
+      onInk: onInkChange,
+    });
+  }
+
+  // ---------- 启动 ----------
+  function init() {
+    bindEvents();
+    initPad();
+    initAuth();
+  }
+
+  // ---------- 登录/注册流程 ----------
+  function showLoginScreen() {
+    $('view-login').classList.remove('hidden');
+    document.querySelector('.app').style.display = 'none';
+    renderExistingUsers();
+  }
+
+  /** 渲染已注册用户列表，点击可快速填入用户名 */
+  function renderExistingUsers() {
+    const users = Auth.getAllUsers();
+    const container = $('existing-users');
+    const list = $('existing-users-list');
+    if (users.length === 0) {
+      container.classList.add('hidden');
+      return;
+    }
+    container.classList.remove('hidden');
+    list.innerHTML = users.map(u =>
+      `<button type="button" class="existing-user-chip" data-user="${u}">${u}</button>`
+    ).join('');
+    list.querySelectorAll('.existing-user-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        $('login-username').value = chip.dataset.user;
+        $('login-password').focus();
+      });
+    });
+  }
+
+  function hideLoginScreen() {
+    $('view-login').classList.add('hidden');
+    document.querySelector('.app').style.display = '';
+    updateUserArea();
+    // 登录后重置当前年级（读取当前用户的）
+    currentGrade = Store.getCurrentGrade();
+    queueGrade = null;
+    showView('home');
+  }
+
+  function updateUserArea() {
+    const user = Auth.getCurrentUser();
+    $('user-name').textContent = user || '';
+  }
+
+  function switchLoginTab(tab) {
+    document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+    if (tab === 'login') {
+      $('tab-login').classList.add('active');
+      $('login-form').classList.remove('hidden');
+      $('register-form').classList.add('hidden');
+    } else {
+      $('tab-register').classList.add('active');
+      $('login-form').classList.add('hidden');
+      $('register-form').classList.remove('hidden');
+    }
+    $('login-message').textContent = '';
+    $('register-message').textContent = '';
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    const username = $('login-username').value;
+    const password = $('login-password').value;
+    const msg = $('login-message');
+    msg.textContent = '登录中...';
+
+    const result = await Auth.login(username, password);
+    if (result.success) {
+      msg.style.color = '#27ae60';
+      msg.textContent = '登录成功！';
+      setTimeout(hideLoginScreen, 400);
+    } else {
+      msg.style.color = '#c0392b';
+      msg.textContent = result.message;
+    }
+  }
+
+  async function handleRegister(e) {
+    e.preventDefault();
+    const username = $('register-username').value;
+    const password = $('register-password').value;
+    const msg = $('register-message');
+    msg.textContent = '注册中...';
+
+    const result = await Auth.register(username, password);
+    if (result.success) {
+      msg.style.color = '#27ae60';
+      msg.textContent = '注册成功，正在进入...';
+      setTimeout(hideLoginScreen, 600);
+    } else {
+      msg.style.color = '#c0392b';
+      msg.textContent = result.message;
+    }
+  }
+
+  function handleLogout() {
+    if (!confirm('确定要退出登录吗？')) return;
+    Auth.logout();
+    // 清空表单
+    $('login-username').value = '';
+    $('login-password').value = '';
+    $('register-username').value = '';
+    $('register-password').value = '';
+    $('login-message').textContent = '';
+    $('register-message').textContent = '';
+    switchLoginTab('login');
+    showLoginScreen();
+  }
+
+  function initAuth() {
+    // 绑定登录/注册表单
+    $('login-form').addEventListener('submit', handleLogin);
+    $('register-form').addEventListener('submit', handleRegister);
+    $('btn-logout').addEventListener('click', handleLogout);
+    $('tab-login').addEventListener('click', () => switchLoginTab('login'));
+    $('tab-register').addEventListener('click', () => switchLoginTab('register'));
+
+    if (Auth.isLoggedIn()) {
+      hideLoginScreen();
+    } else {
+      showLoginScreen();
+    }
+  }
+
+  // 等待 hanziwriter CDN 加载
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
