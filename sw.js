@@ -1,7 +1,7 @@
-// ???? Service Worker - ????
+// 汉字打卡 Service Worker - 离线缓存
 const CACHE_NAME = 'hanzidaka-v2';
 
-// ????????
+// 预缓存的本地资源
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -18,18 +18,18 @@ const PRECACHE_URLS = [
   './js/hanzi-data.js'
 ];
 
-// ?? CDN ??(hanzi-writer ???)
+// 外部 CDN 资源（hanzi-writer 笔顺库）
 const CDN_URLS = [
   'https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js'
 ];
 
-// ??:??????? + ???? CDN
+// 安装：预缓存本地资源 + 尝试缓存 CDN
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      // ??????????
+      // 本地资源必须缓存成功
       await cache.addAll(PRECACHE_URLS);
-      // CDN ??????(???????)
+      // CDN 资源尽量缓存（失败不影响安装）
       try {
         await cache.addAll(CDN_URLS);
       } catch (e) {
@@ -41,7 +41,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// ??:?????
+// 激活：清理旧缓存
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -53,15 +53,15 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// ????
+// 请求拦截
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // ??? GET ??
+  // 只处理 GET 请求
   if (request.method !== 'GET') return;
 
-  // HTML ??:????(????????????)
+  // HTML 文档：网络优先（确保用户总是拿到最新页面）
   if (request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
     event.respondWith(
       fetch(request).then((resp) => {
@@ -75,7 +75,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // ??????(CSS/JS/??):????,????
+  // 本地静态资源（CSS/JS/图片）：缓存优先，后台更新
   if (url.origin === location.origin) {
     event.respondWith(
       caches.match(request).then((cached) => {
@@ -92,7 +92,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // CDN ?????:????(?????)
+  // CDN 等跨域资源：缓存优先（不透明响应）
   event.respondWith(
     caches.match(request).then((cached) => {
       return cached || fetch(request).then((resp) => {
