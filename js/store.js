@@ -5,32 +5,23 @@
  *   - 每日打卡记录（学了哪些字、哪天学的）
  */
 const Store = (function () {
-  function getNamespace() {
-    const user = Auth.getCurrentUser() || 'default';
-    return `hanzi_${user}_`;
-  }
+  const KEY_STATE = 'hanzi_srs_states';     // { char: state }
+  const KEY_CHECKIN = 'hanzi_checkins';     // { 'YYYY-MM-DD': [char, ...] }
+  const KEY_CURRENT_GRADE = 'hanzi_current_grade';
+  const KEY_DAILY_SCORES = 'hanzi_daily_scores'; // { 'YYYY-MM-DD': [score, ...] }
+  const KEY_REWARDS = 'hanzi_rewards';       // { completionTotal, streakTotal, awardedDays, streakMilestones }
 
-  const KEY_STATE = 'srs_states';
-  const KEY_CHECKIN = 'checkins';
-  const KEY_CURRENT_GRADE = 'current_grade';
-  const KEY_DAILY_SCORES = 'daily_scores';
-  const KEY_REWARDS = 'rewards';
-
-  function key(name) {
-    return getNamespace() + name;
-  }
-
-  function load(name, fallback) {
+  function load(key, fallback) {
     try {
-      const raw = localStorage.getItem(key(name));
+      const raw = localStorage.getItem(key);
       return raw ? JSON.parse(raw) : fallback;
     } catch {
       return fallback;
     }
   }
 
-  function save(name, val) {
-    localStorage.setItem(key(name), JSON.stringify(val));
+  function save(key, val) {
+    localStorage.setItem(key, JSON.stringify(val));
   }
 
   function getStates() {
@@ -137,10 +128,10 @@ const Store = (function () {
   }
 
   function reset() {
-    localStorage.removeItem(key(KEY_STATE));
-    localStorage.removeItem(key(KEY_CHECKIN));
-    localStorage.removeItem(key(KEY_DAILY_SCORES));
-    localStorage.removeItem(key(KEY_REWARDS));
+    localStorage.removeItem(KEY_STATE);
+    localStorage.removeItem(KEY_CHECKIN);
+    localStorage.removeItem(KEY_DAILY_SCORES);
+    localStorage.removeItem(KEY_REWARDS);
   }
 
   return {
