@@ -1,107 +1,329 @@
-// ???? Service Worker - ????
-const CACHE_NAME = 'hanzidaka-v2';
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>汉字打卡 · 小学1-6年级生字记忆</title>
+  <meta name="theme-color" content="#8b4513">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="汉字打卡">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="css/style.css?v=16">
+</head>
+<body>
+  <!-- ============ 登录/注册界面 ============ -->
+  <div id="view-login" class="login-overlay">
+    <div class="login-card">
+      <div class="login-logo">🀄</div>
+      <h1 class="login-title">汉字打卡</h1>
+      <p class="login-subtitle">小学1-6年级生字记忆</p>
 
-// ????????
-const PRECACHE_URLS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png',
-  './css/style.css',
-  './js/auth.js',
-  './js/srs.js',
-  './js/store.js',
-  './js/reward.js',
-  './js/handwriting.js',
-  './js/app.js',
-  './js/hanzi-data.js'
-];
+      <div class="login-tabs">
+        <button id="tab-login" class="login-tab active">登录</button>
+        <button id="tab-register" class="login-tab">注册</button>
+      </div>
 
-// ?? CDN ??(hanzi-writer ???)
-const CDN_URLS = [
-  'https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js'
-];
+      <form id="login-form" class="login-form">
+        <input type="text" id="login-username" class="login-input" placeholder="用户名" autocomplete="username">
+        <input type="password" id="login-password" class="login-input" placeholder="密码" autocomplete="current-password">
+        <button type="submit" id="login-submit" class="login-submit">登 录</button>
+        <div id="login-message" class="login-message"></div>
+      </form>
 
-// ??:??????? + ???? CDN
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      // ??????????
-      await cache.addAll(PRECACHE_URLS);
-      // CDN ??????(???????)
-      try {
-        await cache.addAll(CDN_URLS);
-      } catch (e) {
-        console.log('[SW] CDN cache skipped:', e);
-      }
-      console.log('[SW] Precached', PRECACHE_URLS.length, 'local files');
-    })
-  );
-  self.skipWaiting();
-});
+      <div id="existing-users" class="existing-users hidden">
+        <div class="existing-users-label">已注册用户（点击选择）</div>
+        <div id="existing-users-list" class="existing-users-list"></div>
+      </div>
 
-// ??:?????
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
-      );
-    })
-  );
-  self.clients.claim();
-});
+      <form id="register-form" class="login-form hidden">
+        <input type="text" id="register-username" class="login-input" placeholder="用户名（至少2个字符）" autocomplete="username">
+        <input type="password" id="register-password" class="login-input" placeholder="密码（至少4个字符）" autocomplete="new-password">
+        <button type="submit" id="register-submit" class="login-submit">注 册</button>
+        <div id="register-message" class="login-message"></div>
+      </form>
+    </div>
+  </div>
 
-// ????
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+  <div class="app">
+    <!-- 顶部导航 -->
+    <header class="topbar">
+      <div class="logo">🀄 汉字打卡</div>
+      <nav class="nav">
+        <button id="nav-home" class="nav-btn active">今日</button>
+        <button id="nav-stats" class="nav-btn">统计</button>
+        <button id="nav-reward" class="nav-btn">奖励</button>
+      </nav>
+      <div class="user-area">
+        <span id="user-name" class="user-name"></span>
+        <button id="btn-logout" class="logout-btn" title="退出登录">退出</button>
+      </div>
+    </header>
 
-  // ??? GET ??
-  if (request.method !== 'GET') return;
+    <main class="main">
 
-  // HTML ??:????(????????????)
-  if (request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
-    event.respondWith(
-      fetch(request).then((resp) => {
-        if (resp && resp.status === 200) {
-          const clone = resp.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(request, clone));
-        }
-        return resp;
-      }).catch(() => caches.match(request))
-    );
-    return;
-  }
+      <!-- ============ 主页：今日任务 ============ -->
+      <section id="view-home" class="view active">
+        <!-- 统计卡片 -->
+        <div class="stat-cards">
+          <div class="stat-card">
+            <div class="stat-num" id="stat-today">0</div>
+            <div class="stat-label">今日打卡</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="stat-streak">0</div>
+            <div class="stat-label">连续天数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="stat-due">0</div>
+            <div class="stat-label">待学习</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="stat-mastered">0</div>
+            <div class="stat-label">已掌握</div>
+          </div>
+        </div>
 
-  // ??????(CSS/JS/??):????,????
-  if (url.origin === location.origin) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        const networkFetch = fetch(request).then((resp) => {
-          if (resp && resp.status === 200 && resp.type === 'basic') {
-            const clone = resp.clone();
-            caches.open(CACHE_NAME).then((c) => c.put(request, clone));
-          }
-          return resp;
-        }).catch(() => cached);
-        return cached || networkFetch;
-      })
-    );
-    return;
-  }
+        <!-- 年级选择与开始 -->
+        <div class="card">
+          <div class="card-row">
+            <label class="field-label">当前年级</label>
+            <select id="grade-select" class="select">
+              <option value="1">一年级</option>
+              <option value="2">二年级</option>
+              <option value="3">三年级</option>
+              <option value="4">四年级</option>
+              <option value="5">五年级</option>
+              <option value="6">六年级</option>
+            </select>
+          </div>
+          <div class="card-row">
+            <div class="progress-wrap">
+              <div class="progress-bar"><div id="bar-progress" class="progress-fill"></div></div>
+              <span class="progress-text" id="stat-progress">0/0</span>
+            </div>
+          </div>
+          <button id="btn-start" class="btn-primary btn-block">开始学习</button>
+        </div>
 
-  // CDN ?????:????(?????)
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      return cached || fetch(request).then((resp) => {
-        if (resp && (resp.status === 200 || resp.type === 'opaque')) {
-          const clone = resp.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(request, clone));
-        }
-        return resp;
-      }).catch(() => cached);
-    })
-  );
-});
+        <!-- 待学列表 -->
+        <div class="card">
+          <h3 class="card-title">今日学习清单</h3>
+          <div id="due-list" class="due-list"></div>
+          <div class="add-char-row">
+            <button id="btn-add-char" class="btn-ghost">＋ 按顺序添加汉字</button>
+            <button id="btn-reset-queue" class="btn-ghost">↻ 重置</button>
+          </div>
+        </div>
+
+        <!-- 记忆曲线说明 -->
+        <div class="card tip-card">
+          <h3 class="card-title">📖 记忆曲线说明</h3>
+          <p class="tip">本程序基于<b>艾宾浩斯遗忘曲线</b>安排复习：</p>
+          <ul class="curve-list">
+            <li>学习后 <b>1天 → 2天 → 4天 → 7天 → 15天 → 30天 → 60天</b> 逐步复习</li>
+            <li>每次手写打卡后，根据记忆情况（忘记/困难/记得/简单）动态调整间隔</li>
+            <li>连续复习至最高等级即视为"已掌握"</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ 学习页 ============ -->
+      <section id="view-learn" class="view">
+        <div class="learn-progress">
+          <span id="progress-text">1 / 1</span>
+          <button id="btn-skip" class="btn-skip">跳过 →</button>
+        </div>
+
+        <!-- 汉字展示 + 笔顺（合并） -->
+        <div class="card learn-card">
+          <div class="learn-header">
+            <span id="learn-grade" class="grade-tag">一年级</span>
+            <span id="learn-level" class="level-tag">新字</span>
+          </div>
+
+          <div class="char-stroke-col">
+            <!-- 上：汉字 + 拼音 + 组词 -->
+            <div class="char-section">
+              <h3 class="card-title">📖 汉字</h3>
+              <div class="char-tianzi">
+                <div class="char-big" id="learn-char">字</div>
+              </div>
+              <div class="pinyin" id="learn-pinyin">zì</div>
+              <div class="words" id="learn-words"></div>
+            </div>
+            <!-- 下：笔顺动画 -->
+            <div class="stroke-section">
+              <h3 class="card-title">✍️ 笔顺</h3>
+              <div class="writer-wrap">
+                <div id="writer-target"></div>
+              </div>
+              <div id="quiz-hint" class="quiz-hint"></div>
+              <div class="stroke-names" id="stroke-names"></div>
+              <div class="btn-row">
+                <button id="btn-play" class="btn-ghost">▶ 重播</button>
+                <button id="btn-quiz" class="btn-ghost">✏️ 跟写</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 进入手写打卡 -->
+        <button id="btn-go-write" class="btn-primary btn-block">🖊️ 开始手写打卡</button>
+      </section>
+
+      <!-- ============ 手写打卡页 ============ -->
+      <section id="view-write" class="view">
+        <div class="learn-progress">
+          <span id="write-progress-text">1 / 1</span>
+          <button id="btn-write-back" class="btn-skip">← 返回笔顺</button>
+        </div>
+
+        <!-- 汉字提示（小） -->
+        <div class="card write-hint-card">
+          <div class="write-hint-left">
+            <span class="write-hint-label">请书写：</span>
+            <span class="write-hint-char" id="write-char">字</span>
+            <span class="write-hint-pinyin" id="write-pinyin">zì</span>
+          </div>
+          <button id="btn-toggle-hint" class="btn-ghost">🙈 隐藏提示</button>
+        </div>
+
+        <!-- 手写打卡区 -->
+        <div class="card">
+          <h3 class="card-title">🖊️ 在田字格中书写该汉字</h3>
+          <div class="write-wrap">
+            <canvas id="write-canvas" class="write-canvas"></canvas>
+          </div>
+          <div class="btn-row">
+            <button id="btn-clear" class="btn-ghost">🗑️ 清空</button>
+            <button id="btn-finish-write" class="btn-primary" disabled>完成书写</button>
+          </div>
+        </div>
+
+        <!-- 自动评分结果区 -->
+        <div id="rating-area" class="card hidden">
+          <h3 class="card-title">🤖 自动评分结果</h3>
+          <div id="auto-score" class="auto-score"></div>
+          <p class="rating-tip">评分将决定下次复习的时间间隔，即将进入下一字…</p>
+        </div>
+      </section>
+
+      <!-- ============ 统计页 ============ -->
+      <section id="view-stats" class="view">
+        <div class="stat-cards">
+          <div class="stat-card"><div class="stat-num" id="stats-mastered">0</div><div class="stat-label">已掌握</div></div>
+          <div class="stat-card"><div class="stat-num" id="stats-learning">0</div><div class="stat-label">学习中</div></div>
+          <div class="stat-card"><div class="stat-num" id="stats-fresh">0</div><div class="stat-label">未学</div></div>
+          <div class="stat-card"><div class="stat-num" id="stats-total">0</div><div class="stat-label">总字数</div></div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">📅 最近 35 天打卡</h3>
+          <div class="calendar" id="calendar"></div>
+          <div class="cal-legend">
+            <span>少</span>
+            <span class="cal-cell cal-some"></span>
+            <span class="cal-cell cal-many"></span>
+            <span>多</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">📊 各年级掌握进度</h3>
+          <div id="grade-progress" class="grade-progress"></div>
+        </div>
+      </section>
+
+      <!-- ============ 奖励页 ============ -->
+      <section id="view-reward" class="view">
+        <!-- 称号卷轴 -->
+        <div class="honor-scroll">
+          <div class="scroll-rod scroll-rod-top"></div>
+          <div class="scroll-body">
+            <div class="scroll-title">荣 誉 称 号</div>
+            <div class="honor-display">
+              <div class="honor-seal" id="honor-seal">墨</div>
+              <div class="honor-info">
+                <div class="honor-rank" id="reward-honor-name">尚未获得称号</div>
+                <div class="honor-next" id="reward-honor-next">累计奖励达 10 元可获首个称号</div>
+              </div>
+            </div>
+            <!-- 累计进度条 -->
+            <div class="honor-progress-wrap">
+              <div class="honor-progress-bar">
+                <div class="honor-progress-fill" id="honor-progress-fill"></div>
+              </div>
+              <div class="honor-progress-text">
+                <span id="reward-total-big">0</span>
+                <span class="unit">元</span>
+                <span class="divider">/</span>
+                <span id="reward-next-threshold">10</span>
+                <span class="unit">元</span>
+              </div>
+            </div>
+          </div>
+          <div class="scroll-rod scroll-rod-bottom"></div>
+        </div>
+
+        <!-- 奖励来源 -->
+        <div class="reward-sources">
+          <div class="source-card source-completion">
+            <div class="source-icon">✍️</div>
+            <div class="source-body">
+              <div class="source-name">完成度奖励</div>
+              <div class="source-desc">当日书写均分 ≥ 0.9，奖 1 元</div>
+              <div class="source-amount"><span id="reward-completion">0</span><em>元</em></div>
+            </div>
+          </div>
+          <div class="source-card source-streak">
+            <div class="source-icon">🔥</div>
+            <div class="source-body">
+              <div class="source-name">连续打卡奖励</div>
+              <div class="source-desc">每满 10 天，奖 5 + 天数÷10 元</div>
+              <div class="source-amount"><span id="reward-streak">0</span><em>元</em></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 称号阶梯 -->
+        <div class="card tier-ladder-card">
+          <h3 class="card-title">🏆 称号阶梯</h3>
+          <div class="tier-ladder" id="tier-ladder"></div>
+        </div>
+
+        <p class="reward-footer-tip">持之以恒，笔耕不辍，终成字圣</p>
+      </section>
+
+    </main>
+
+    <footer class="footer">
+      小学生字打卡 · 基于艾宾浩斯记忆曲线
+    </footer>
+  </div>
+
+  <!-- 笔顺动画库 -->
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+  <script src="js/hanzi-data.js?v=5"></script>
+  <script src="js/srs.js?v=4"></script>
+  <script src="js/auth.js?v=1"></script>
+  <script src="js/store.js?v=6"></script>
+  <script src="js/reward.js?v=1"></script>
+  <script src="js/handwriting.js?v=4"></script>
+  <script src="js/app.js?v=13"></script>
+
+  <!-- PWA Service Worker 注册 -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').then(function (reg) {
+          console.log('[PWA] Service Worker registered, scope:', reg.scope);
+        }).catch(function (err) {
+          console.warn('[PWA] Service Worker registration failed:', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
