@@ -87,6 +87,7 @@
           <span class="due-char">${h.char}</span>
           <span class="due-pinyin">${h.pinyin}</span>
           <span class="due-tag ${tag}">${label}</span>
+          <button class="due-master" data-char="${h.char}" title="标记为已掌握">✓ 已掌握</button>
         `;
         list.appendChild(item);
       });
@@ -107,6 +108,9 @@
       const s = states[h.char];
       if (!s) {
         fresh.push(h);
+      } else if (s.status === 'mastered') {
+        // 已掌握的字不再出现在清单中
+        return;
       } else if (SRS.isDue(s)) {
         due.push(h);
       }
@@ -119,6 +123,25 @@
   /** 从清单中移除指定索引的字 */
   function removeFromQueue(idx) {
     currentQueue.splice(idx, 1);
+    renderHome();
+  }
+
+  /** 将指定汉字标记为已掌握，并从清单中移除 */
+  function markAsMastered(char) {
+    let state = Store.getState(char);
+    if (!state) {
+      state = SRS.createState(char);
+    }
+    state.level = SRS.MAX_LEVEL;
+    state.status = 'mastered';
+    state.nextReview = null;
+    Store.setState(char, state);
+
+    // 从当前队列移除
+    const idx = currentQueue.findIndex(h => h.char === char);
+    if (idx >= 0) currentQueue.splice(idx, 1);
+
+    // 同步统计（已掌握数 +1）
     renderHome();
   }
 
@@ -539,12 +562,19 @@
     $('nav-stats').addEventListener('click', () => showView('stats'));
     $('nav-reward').addEventListener('click', () => showView('reward'));
 
-    // 清单编辑：移除单个字（事件委托）
+    // 清单编辑：移除单个字 / 标记已掌握（事件委托）
     $('due-list').addEventListener('click', e => {
-      const btn = e.target.closest('.due-remove');
-      if (btn) {
-        const idx = parseInt(btn.dataset.idx);
+      const removeBtn = e.target.closest('.due-remove');
+      if (removeBtn) {
+        const idx = parseInt(removeBtn.dataset.idx);
         if (!isNaN(idx)) removeFromQueue(idx);
+        return;
+      }
+      const masterBtn = e.target.closest('.due-master');
+      if (masterBtn) {
+        const char = masterBtn.dataset.char;
+        if (char) markAsMastered(char);
+        return;
       }
     });
 

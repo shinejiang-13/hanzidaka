@@ -173,6 +173,23 @@ body {
   padding: 2px;
 }
 .due-remove:hover { color: #c0392b; }
+.due-master {
+  margin-top: 6px;
+  background: #eafaf0;
+  border: 1px solid #b7e4c7;
+  color: #2d8659;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.due-master:hover {
+  background: #2d8659;
+  color: #fff;
+}
+.due-master:active { transform: scale(0.95); }
 .new-tag { background: #fff3cd; color: #b8860b; }
 .review-tag { background: #e8d5b0; color: #8b5a2b; }
 .empty { color: #a0784a; text-align: center; padding: 20px; }
