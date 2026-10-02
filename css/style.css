@@ -1,4 +1,4 @@
-/* ============ ?? ============ */
+/* ============ 全局 ============ */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
 body {
@@ -18,7 +18,7 @@ body {
   box-shadow: 0 0 30px rgba(120, 80, 30, 0.12);
 }
 
-/* ============ ?? ============ */
+/* ============ 顶部 ============ */
 .topbar {
   display: flex;
   align-items: center;
@@ -31,7 +31,7 @@ body {
   z-index: 10;
   box-shadow: 0 2px 8px rgba(107, 52, 16, 0.3);
 }
-.logo { font-size: 20px; font-weight: 700; font-family: "KaiTi", "??", "STKaiti", serif; letter-spacing: 2px; }
+.logo { font-size: 20px; font-weight: 700; font-family: "KaiTi", "楷体", "STKaiti", serif; letter-spacing: 2px; }
 .nav { display: flex; gap: 8px; }
 .nav-btn {
   background: rgba(255, 248, 231, 0.15);
@@ -45,13 +45,13 @@ body {
 }
 .nav-btn.active, .nav-btn:hover { background: #fff8e7; color: #8b4513; font-weight: 600; }
 
-/* ============ ?? ============ */
+/* ============ 主体 ============ */
 .main { flex: 1; padding: 16px; }
 .view { display: none; animation: fade .3s ease; }
 .view.active { display: block; }
 @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-/* ============ ?? ============ */
+/* ============ 卡片 ============ */
 .card {
   background: #fffdf7;
   border-radius: 14px;
@@ -74,7 +74,7 @@ body {
   color: #5c3a1e;
 }
 
-/* ============ ???? ============ */
+/* ============ 统计卡片 ============ */
 .stat-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -89,10 +89,10 @@ body {
   box-shadow: 0 2px 8px rgba(120, 80, 30, 0.06);
   border: 1px solid #f0e2c4;
 }
-.stat-num { font-size: 24px; font-weight: 700; color: #c0392b; font-family: "KaiTi", "??", serif; }
+.stat-num { font-size: 24px; font-weight: 700; color: #c0392b; font-family: "KaiTi", "楷体", serif; }
 .stat-label { font-size: 12px; color: #a0784a; margin-top: 4px; }
 
-/* ============ ??? ============ */
+/* ============ 进度条 ============ */
 .progress-wrap { display: flex; align-items: center; gap: 10px; }
 .progress-bar {
   flex: 1;
@@ -109,7 +109,7 @@ body {
 }
 .progress-text { font-size: 13px; color: #a0784a; min-width: 50px; }
 
-/* ============ ?? ============ */
+/* ============ 按钮 ============ */
 .btn-primary {
   background: linear-gradient(180deg, #c0392b 0%, #a93226 100%);
   color: #fff8e7;
@@ -145,7 +145,7 @@ body {
   font-size: 14px;
 }
 
-/* ============ ???? ============ */
+/* ============ 待学列表 ============ */
 .due-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .due-item {
   display: flex;
@@ -158,7 +158,7 @@ body {
   min-width: 60px;
   position: relative;
 }
-.due-char { font-size: 24px; color: #5c3a1e; font-family: "KaiTi", "??", serif; }
+.due-char { font-size: 24px; color: #5c3a1e; font-family: "KaiTi", "楷体", serif; }
 .due-pinyin { font-size: 11px; color: #c0392b; }
 .due-tag { font-size: 10px; margin-top: 2px; padding: 1px 6px; border-radius: 6px; }
 .due-remove {
@@ -211,7 +211,7 @@ body {
 }
 .add-char-input:focus { border-color: #c0392b; }
 
-/* ============ ??? ============ */
+/* ============ 学习页 ============ */
 .learn-progress {
   display: flex;
   justify-content: space-between;
@@ -231,7 +231,7 @@ body {
   border: 1px solid #e8d5b0;
 }
 
-/* ?? + ?? ???? */
+/* 汉字 + 笔顺 上下布局 */
 .char-stroke-col {
   display: flex;
   flex-direction: column;
@@ -254,7 +254,7 @@ body {
   padding-top: 16px;
 }
 
-/* ?????????? */
+/* 田字格背景的汉字展示 */
 .char-tianzi {
   position: relative;
   width: 180px;
@@ -268,7 +268,7 @@ body {
   flex-shrink: 0;
   box-shadow: inset 0 0 0 1px rgba(201, 169, 110, 0.3);
 }
-/* ?????? */
+/* 田字格竖虚线 */
 .char-tianzi::before {
   content: '';
   position: absolute;
@@ -276,7 +276,7 @@ body {
   width: 0;
   border-left: 1px dashed rgba(201, 169, 110, 0.7);
 }
-/* ?????? */
+/* 田字格横虚线 */
 .char-tianzi::after {
   content: '';
   position: absolute;
@@ -285,7 +285,7 @@ body {
   border-top: 1px dashed rgba(201, 169, 110, 0.7);
 }
 .char-big {
-  font-family: "KaiTi", "??", "STKaiti", "Kaiti SC", "AR PL UKai CN", serif;
+  font-family: "KaiTi", "楷体", "STKaiti", "Kaiti SC", "AR PL UKai CN", serif;
   font-size: 120px;
   font-weight: 400;
   color: #2d1a0e;
@@ -304,14 +304,14 @@ body {
   border: 1px solid #e8d5b0;
 }
 
-/* ============ ?? ============ */
+/* ============ 笔顺 ============ */
 .writer-wrap {
   display: flex;
   justify-content: center;
   padding: 10px 0;
 }
 .writer-fallback {
-  font-family: "KaiTi", "??", "STKaiti", "Kaiti SC", "AR PL UKai CN", serif;
+  font-family: "KaiTi", "楷体", "STKaiti", "Kaiti SC", "AR PL UKai CN", serif;
   font-size: 120px;
   color: #2d1a0e;
 }
@@ -346,7 +346,7 @@ body {
 }
 .quiz-hint { text-align: center; color: #b8860b; min-height: 20px; margin-top: 8px; font-size: 14px; }
 
-/* ?????? */
+/* 手写页提示卡 */
 .write-hint-card {
   display: flex;
   align-items: center;
@@ -358,10 +358,10 @@ body {
   gap: 8px;
 }
 .write-hint-label { font-size: 14px; color: #a0784a; }
-.write-hint-char { font-family: "KaiTi", "??", "STKaiti", "Kaiti SC", "AR PL UKai CN", serif; font-size: 36px; font-weight: 400; color: #2d1a0e; }
+.write-hint-char { font-family: "KaiTi", "楷体", "STKaiti", "Kaiti SC", "AR PL UKai CN", serif; font-size: 36px; font-weight: 400; color: #2d1a0e; }
 .write-hint-pinyin { font-size: 16px; color: #c0392b; }
 
-/* ============ ??? ============ */
+/* ============ 手写板 ============ */
 .write-wrap {
   display: flex;
   justify-content: center;
@@ -377,7 +377,7 @@ body {
   box-shadow: inset 0 0 0 1px rgba(201, 169, 110, 0.3);
 }
 
-/* ============ ?? ============ */
+/* ============ 评分 ============ */
 .rating-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -399,7 +399,7 @@ body {
 .rate-easy { background: #2980b9; }
 .rating-tip { text-align: center; color: #a0784a; font-size: 12px; margin-top: 10px; }
 
-/* ?????? */
+/* 自动评分结果 */
 .auto-score {
   display: flex;
   align-items: center;
@@ -414,7 +414,7 @@ body {
 .score-label { font-size: 17px; font-weight: 600; }
 .hidden { display: none !important; }
 
-/* ============ ??? ============ */
+/* ============ 统计页 ============ */
 .calendar {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -461,30 +461,30 @@ body {
 }
 .gp-num { font-size: 13px; color: #a0784a; min-width: 50px; text-align: right; }
 
-/* ============ ???? ============ */
+/* ============ 提示卡片 ============ */
 .tip-card .tip { font-size: 14px; line-height: 1.7; color: #7a5230; }
 .curve-list { margin: 8px 0 0 18px; color: #7a5230; font-size: 13px; line-height: 1.9; }
 .curve-list b { color: #c0392b; }
 
-/* ============ ?? ============ */
+/* ============ 页脚 ============ */
 .footer {
   text-align: center;
   padding: 14px;
   font-size: 12px;
   color: #a0784a;
   background: #f5ead3;
-  font-family: "KaiTi", "??", serif;
+  font-family: "KaiTi", "楷体", serif;
   letter-spacing: 1px;
 }
 
-/* ============ ???(??????) ============ */
+/* ============ 奖励页（古典卷轴风格） ============ */
 #view-reward {
   background:
     radial-gradient(ellipse at top, #fdf6e8 0%, #f5ead3 100%);
   padding: 20px 16px 32px;
 }
 
-/* ---- ?? ---- */
+/* ---- 卷轴 ---- */
 .honor-scroll {
   position: relative;
   margin: 8px 0 20px;
@@ -544,7 +544,7 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  font-family: "KaiTi", "??", "STKaiti", serif;
+  font-family: "KaiTi", "楷体", "STKaiti", serif;
   box-shadow: inset 0 0 0 2px #a93226, 0 2px 6px rgba(192,57,43,0.4);
   opacity: 0.35;
   transition: all .4s;
@@ -558,7 +558,7 @@ body {
   font-size: 28px;
   font-weight: 700;
   color: #7a5230;
-  font-family: "KaiTi", "??", "STKaiti", serif;
+  font-family: "KaiTi", "楷体", "STKaiti", serif;
   line-height: 1.2;
 }
 .honor-rank.honored {
@@ -573,7 +573,7 @@ body {
   margin-top: 6px;
 }
 
-/* ????? */
+/* 累计进度条 */
 .honor-progress-wrap { margin-top: 4px; }
 .honor-progress-bar {
   height: 14px;
@@ -602,7 +602,7 @@ body {
 .honor-progress-text .unit { font-size: 13px; color: #a0784a; margin: 0 2px; }
 .honor-progress-text .divider { color: #c9a96e; margin: 0 6px; }
 
-/* ---- ?????? ---- */
+/* ---- 奖励来源卡片 ---- */
 .reward-sources {
   display: flex;
   gap: 12px;
@@ -628,11 +628,11 @@ body {
   font-size: 24px;
   font-weight: 700;
   color: #c0392b;
-  font-family: "KaiTi", "??", serif;
+  font-family: "KaiTi", "楷体", serif;
 }
 .source-amount em { font-size: 13px; font-style: normal; color: #a0784a; margin-left: 2px; }
 
-/* ---- ???? ---- */
+/* ---- 称号阶梯 ---- */
 .tier-ladder-card {
   background: #fffdf7;
   border: 1px solid #e8d5b0;
@@ -674,7 +674,7 @@ body {
   color: #7a5230;
   width: 72px;
   flex-shrink: 0;
-  font-family: "KaiTi", "??", serif;
+  font-family: "KaiTi", "楷体", serif;
 }
 .ladder-row.reached .ladder-name { color: #b8860b; }
 .ladder-bar {
@@ -704,11 +704,11 @@ body {
   font-size: 13px;
   color: #a0784a;
   margin-top: 20px;
-  font-family: "KaiTi", "??", serif;
+  font-family: "KaiTi", "楷体", serif;
   letter-spacing: 2px;
 }
 
-/* ============ ??? ============ */
+/* ============ 响应式 ============ */
 @media (max-width: 480px) {
   .stat-cards { grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .stat-num { font-size: 20px; }
@@ -722,7 +722,7 @@ body {
   .rating-row { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* ============ ???? ============ */
+/* ============ 登录界面 ============ */
 .login-overlay {
   position: fixed;
   inset: 0;
@@ -752,7 +752,7 @@ body {
 }
 .login-title {
   text-align: center;
-  font-family: "KaiTi", "??", "STKaiti", serif;
+  font-family: "KaiTi", "楷体", "STKaiti", serif;
   font-size: 28px;
   color: #8b4513;
   letter-spacing: 4px;
@@ -831,7 +831,7 @@ body {
   color: #c0392b;
 }
 
-/* ????????? */
+/* 已注册用户快速选择 */
 .existing-users {
   margin-top: 16px;
   padding-top: 16px;
@@ -865,7 +865,7 @@ body {
   color: #fff8e7;
 }
 
-/* ============ ????(??) ============ */
+/* ============ 用户区域（顶栏） ============ */
 .user-area {
   display: flex;
   align-items: center;
@@ -893,7 +893,7 @@ body {
 @media (max-width: 480px) {
   .user-name { display: none; }
 
-  /* ????? */
+  /* 顶栏紧凑化 */
   .topbar {
     padding: 10px 16px;
     gap: 8px;
@@ -901,7 +901,7 @@ body {
   .logo { font-size: 17px; letter-spacing: 1px; }
   .logout-btn { padding: 5px 10px; font-size: 12px; }
 
-  /* ????????? */
+  /* 导航移到底部固定栏 */
   .nav {
     position: fixed;
     bottom: 0;
@@ -928,7 +928,7 @@ body {
     color: #fff8e7;
   }
 
-  /* ??????????? */
+  /* 内容区留出底部导航高度 */
   .main { padding-bottom: 72px; }
   .footer { margin-bottom: 56px; }
 }
